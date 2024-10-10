@@ -1,5 +1,14 @@
 import socket
 import os
+from flask import Flask, jsonify, render_template_string, send_from_directory
+import re
+
+def escape_markdown(text):
+    """Escape MarkdownV2 special characters in the text."""
+    return re.sub(r'([_.*[\]()~`>#+\-!=|{}])', r'\\\1', text)
+
+# Initialize Flask app
+app = Flask(__name__)
 
 # Function to get the server's IP address dynamically
 def get_ip_address():
@@ -14,7 +23,26 @@ def get_ip_address():
         s.close()
     return ip
 
-# Function to handle client requests
+# Flask API route to list files in the server's directory as hyperlinks
+@app.route('/api/files', methods=['GET'])
+def list_files():
+    try:
+        files = os.listdir('.')  # List files in the current directory
+        # Create Markdown formatted links for each file
+        file_links = '\n'.join([f'[{escape_markdown(file)}](http://{get_ip_address()}:8080/api/download/{escape_markdown(file)})' for file in files])
+        return f"Files available for download:\n{file_links}", 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Flask route to handle file downloads
+@app.route('/api/download/<filename>', methods=['GET'])
+def download_file(filename):
+    try:
+        return send_from_directory(os.getcwd(), filename, as_attachment=True)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 404
+
+# Function to handle client requests (keeping socket functionality)
 def handle_client(conn, addr):
     print(f"Connected by {addr}")
 
@@ -29,48 +57,21 @@ def handle_client(conn, addr):
 
         elif data.startswith('DOWNLOAD'):
             # Handle file download request
-            filename = data.split(' ')[1]
+            filename = data.split(' ')[1]  # Extract filename
             if os.path.isfile(filename):
                 with open(filename, 'rb') as f:
-                    file_data = f.read()
-                    conn.sendall(file_data)
-                print(f"File '{filename}' sent to {addr}.")
+                    conn.sendfile(f)
             else:
-                conn.sendall(b'ERROR: File not found.')
-
-        elif data.startswith('UPLOAD'):
-            # Handle file upload request
-            filename = data.split(' ')[1]
-            file_size = int(data.split(' ')[2])
-            with open(filename, 'wb') as f:
-                received = conn.recv(file_size)
-                f.write(received)
-            print(f"File '{filename}' uploaded successfully from {addr}.")
-            conn.sendall(b'File uploaded successfully.')
-
-        else:
-            conn.sendall(b'Invalid command.')
+                conn.sendall(b'File not found.')
 
     except Exception as e:
-        print(f"Error while handling request: {e}")
-        conn.sendall(f'ERROR: {str(e)}'.encode())
-    
+        print(f"Error: {e}")
     finally:
         conn.close()
 
-# Main function to start the server
-def start_server(port=8080):
+if __name__ == '__main__':
     ip = get_ip_address()
-    print(f"Server is starting on {ip}:{port}")
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((ip, port))
-        s.listen()
-        print(f"Server listening on {ip}:{port}")
-
-        while True:
-            conn, addr = s.accept()  # Accept a connection from the client
-            handle_client(conn, addr)  # Handle the client request
-
-if __name__ == "__main__":
-    start_server()
+    print(f"Server running on {ip}:8080")
+    
+    # Run the Flask server on the detected IP and port 8080
+    app.run(host=ip, port=8080)
