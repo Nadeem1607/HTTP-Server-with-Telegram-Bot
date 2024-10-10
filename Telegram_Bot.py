@@ -51,7 +51,7 @@ async def fetch_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Failed to connect to {ip}:{port}. Error: {str(e)}")
 
 def main():
-    application = ApplicationBuilder().token('7776623462:AAEYYt5rpNtwEBwSy-Pup0fGl1Mna7N8eoU').build()
+    application = ApplicationBuilder().token('<Your_BOT_Token>').build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("setconnection", set_connection))
