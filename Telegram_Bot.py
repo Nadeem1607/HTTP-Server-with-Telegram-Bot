@@ -42,14 +42,16 @@ async def fetch_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Attempt to connect to the server
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(f'http://{ip}:{port}/api/data') as response:
-                data = await response.json()
-                await update.message.reply_text(f"Data from server: {data}")
+            async with session.get(f'http://{ip}:{port}/api/files') as response:
+                # Get the Markdown response
+                markdown_data = await response.text()
+                # Send the Markdown back as a message
+                await update.message.reply_text(markdown_data, parse_mode='MarkdownV2')
     except Exception as e:
         await update.message.reply_text(f"Failed to connect to {ip}:{port}. Error: {str(e)}")
 
 def main():
-    application = ApplicationBuilder().token('<Your_Bot_Token>').build()
+    application = ApplicationBuilder().token('7776623462:AAEYYt5rpNtwEBwSy-Pup0fGl1Mna7N8eoU').build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("setconnection", set_connection))
